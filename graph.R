@@ -1,7 +1,6 @@
 library(tidyverse)
 library(xts)
-library(tbl2xts)
-library(ggplot2)
+#library(tbl2xts)
 setwd("~/Documents/GitHub/covid-19")
 
 # Get latest data from https://coronavirus.data.gov.uk/ - no way to automate this that I can see
@@ -41,13 +40,19 @@ ggplot(eng, aes(x = date, y = count)) +
 # Can't be bothered to go through all the hoops of readxl and automatic data extraction so here's a processed csv
 data <- read_csv("data/processed.csv")
 data$date = as.Date(data$date)
-data <- filter(data, date<=as.Date("2020-04-14"))
+data$roll7c <- rollmean(data$cases, 7, fill=NA)
+data$roll7d <- rollmean(data$deaths, 7, fill=NA)
+data_roll <- filter(data, date<=as.Date("2020-04-14"))  %>% select(date, roll7c, roll7d) %>% 
+  pivot_longer(-date, names_to = "type", values_to = "count")
+data <- filter(data, date<=as.Date("2020-04-14"))  %>% select(date, cases, deaths) %>% 
+  pivot_longer(-date, names_to = "type", values_to = "count")
 
 ggplot(data, aes(x = date, y = count)) + 
-  geom_line(aes(color = type), size = 1) +
-  scale_color_manual(values = c("black", "grey")) +
-  scale_y_continuous(trans='log10', limits=c(10,10000)) +
-  scale_x_date(date_breaks = "week" , date_labels = "%d-%b") +
+  geom_point(aes(color = type), size = 1) +
+  geom_line(data=data_roll, aes(color = type), size = 1)+
+  scale_color_manual(values = c("black", "grey", "black", "grey")) +
+  scale_y_continuous(trans='log10', limits=c(10,5000)) +
+  scale_x_date(date_breaks = "weeks" , date_labels = "%d-%b") +
   labs(title="Daily COVID-19 new cases and deaths in England", x="Date", y="Cases / deaths", color="Plot") +
   geom_vline(xintercept=as.numeric(as.Date("2020-03-12")), color = "darkgreen", linetype=3) +
   annotate(geom = "text", x=as.Date("2020-03-11"), y=12, label = "Symptomatic self-isolation", color = "darkgreen", angle = 90, hjust=0) +
